@@ -7,12 +7,13 @@ pub mod dataset_cache;
 //use reqwest::*;
 use crate::image::*;
 use std::fs;
+use dataset_cache::DatasetCache;
 //use imageproc::*;
 //use ::image as image_ext;
 
 #[tokio::main]
 async fn main() {
-    let mut cache = dataset_cache::DatasetCache::new(10, 10);
+    let mut cache = DatasetCache::new(10, 10);
     {
         let ree = cache.access("ree");
         println!("{:?}", ree);
