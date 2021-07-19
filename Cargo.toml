@@ -7,11 +7,13 @@ edition = "2018"
 
 [dependencies]
 image = "*"
-#imageproc = "*"
 glam = { version = "*", features = ["serde"]}
 serde = { version = "*", features = ["derive"]}
 serde_json = "*"
-reqwest = { version = "*", features = [ "json" ]}
+reqwest = { version = "*", features = [ "json", "blocking" ]}
 tokio = { version = "*", features = [ "full" ]}
 bytes = "*"
 num = "*"
+iron = "*"
+url = "*"
+urlencoding = "*"
