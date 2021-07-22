@@ -1,14 +1,169 @@
 pub mod math {
     use glam::*;
+    use serde::{Serialize, Deserialize};
     use std::ops::*;
 
-    pub trait math_utils {
+    // discrete abb2
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Dabb2 {
+        pub begin: IVec2,
+        pub end: IVec2
+        /*
+        using value_type = glm::vec<2, T>;
+
+        value_type Begin, End;
+
+        T Area() const;
+
+        bool Empty() const;
+
+        void ClampInto(DiscreteAABB2<T> const& other);
+
+        bool IsCompletelyInside(DiscreteAABB2 const& other) const;
+
+        DiscreteAABB2<T> operator&&(DiscreteAABB2<T> const& other) const;
+
+        // Mathematical operations take place on begin and end
+
+        DiscreteAABB2<T> operator+(glm::vec<2, T> const& shift) const;
+        DiscreteAABB2<T> operator-(glm::vec<2, T> const& shift) const;
+        DiscreteAABB2<T> operator*(T const& rhs) const;
+        DiscreteAABB2<T> operator*(glm::vec<2, T> const& rhs) const;
+        DiscreteAABB2<T> operator/(glm::vec<2, T> const& rhs) const;
+        */
+    }
+
+    impl Dabb2 {
+        pub fn area(&self) -> usize {
+            assert!(self.end.x - self.begin.x >= 0 && self.end.y - self.begin.y >= 0);
+            (self.end.x - self.begin.x) as usize * (self.end.y - self.begin.y) as usize
+        }
+        pub fn cell(position: IVec2) -> Self {
+            Self {
+                begin: position,
+                end: position + 1
+            }
+        }
+        pub fn bounds(begin: IVec2, end: IVec2) -> Self {
+            Self {
+                begin,
+                end
+            }
+        }
+    }
+
+    impl Add<IVec2> for Dabb2 {
+        type Output = Self;
+
+        fn add(self, rhs: IVec2) -> Self {
+            Self {
+                begin: self.begin + rhs,
+                end: self.end + rhs
+            }
+        }
+    }
+
+    impl Sub<IVec2> for Dabb2 {
+        type Output = Self;
+
+        fn sub(self, rhs: IVec2) -> Self {
+            Self {
+                begin: self.begin - rhs,
+                end: self.end - rhs
+            }
+        }
+    }
+    
+    impl Mul<IVec2> for Dabb2 {
+        type Output = Self;
+
+        fn mul(self, rhs: IVec2) -> Self {
+            Self {
+                begin: self.begin * rhs,
+                end: self.end * rhs
+            }
+        }
+    }
+
+    impl Mul<i32> for Dabb2 {
+        type Output = Self;
+
+        fn mul(self, rhs: i32) -> Self {
+            Self {
+                begin: self.begin * rhs,
+                end: self.end * rhs
+            }
+        }
+    }
+
+    impl Div<IVec2> for Dabb2 {
+        type Output = Self;
+
+        fn div(self, rhs: IVec2) -> Self {
+            Self {
+                begin: self.begin / rhs,
+                end: self.end / rhs
+            }
+        }
+    }
+
+    impl Div<i32> for Dabb2 {
+        type Output = Self;
+
+        fn div(self, rhs: i32) -> Self {
+            Self {
+                begin: self.begin / rhs,
+                end: self.end / rhs
+            }
+        }
+    }
+
+    impl<'a> IntoIterator for &'a Dabb2 {
+        type Item = IVec2;
+        type IntoIter = Dabb2IntoIterator<'a>;
+    
+        fn into_iter(self) -> Self::IntoIter {
+            Dabb2IntoIterator {
+                owner: self,
+                index: self.begin
+            }
+        }
+    }
+
+    pub struct Dabb2IntoIterator<'a> {
+        owner: &'a Dabb2,
+        index: IVec2
+    }
+
+    impl<'a> Iterator for Dabb2IntoIterator<'a> {
+        type Item = IVec2;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let res = self.index;
+            self.index.x += 1;
+            if self.index.x >= self.owner.end.x {
+                self.index.y += 1;
+                self.index.x = self.owner.begin.x;
+            }
+            if res.y >= self.owner.end.y {
+                None
+            } else {
+                Some(res)
+            }
+        }
+
+        fn count(self) -> usize {
+            self.owner.area()
+        }
+    }
+
+    pub trait MathUtils {
         fn correct_mod(&self, div: Self) -> Self;
         fn floor_on_interval(&self, div: Self) -> Self;
         fn ceil_on_interval(&self, div: Self) -> Self;
     }
 
-    impl math_utils for i32 {
+    impl MathUtils for i32 {
         fn correct_mod(&self, div: Self) -> Self {
             let mod_val = self.abs() % div;
             if *self < 0 && mod_val > 0 {
@@ -27,7 +182,7 @@ pub mod math {
         }
     }
 
-    impl math_utils for IVec2 {
+    impl MathUtils for IVec2 {
         fn correct_mod(&self, div: Self) -> Self {
             ivec2(self.x.correct_mod(div.x), self.y.correct_mod(div.y))
         }

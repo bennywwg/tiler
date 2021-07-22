@@ -12,6 +12,7 @@ use dataset_cache::DatasetCache;
 */
 use config::*;
 use glam::*;
+use util::*;
 
 #[tokio::main]
 async fn main() {
@@ -22,6 +23,14 @@ async fn main() {
     let image = Image::decode(ImageEncoding::srtm(), &body[..]).unwrap();
     let image_mapped = preview::make_preview(&image, 0.0, 400.0).unwrap();
     */
+
+    let b = math::Dabb2::bounds(ivec2(0,0), ivec2(4,5));
+
+    for idx in b.into_iter() {
+        println!("{}", idx);
+    }
+
+    return;
 
     let preview_request = http_api::PreviewRequest {
         min_val: 0.0,
