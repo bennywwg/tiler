@@ -1,5 +1,4 @@
 use iron::prelude::*;
-use iron::{typemap, AfterMiddleware, BeforeMiddleware};
 use serde::{Serialize, Deserialize};
 use glam::*;
 
@@ -15,31 +14,45 @@ pub struct PreviewRequest {
 }
 
 fn hello_world(r: &mut Request) -> IronResult<Response> {
-    let mut config: Option<PreviewRequest> = None;
-    if let Some(query_str) = r.url.query() {
-        config = Some(serde_json::from_str::<PreviewRequest>(&urlencoding::decode(query_str).unwrap()).unwrap());
-        println!("{:?}", config);
-    }
-    
-    match config {
-        Some(reqConf) => {
-            let body = reqwest::blocking::get("https://spkit.org/datasets/remapped/222_144_000.hgt").unwrap().bytes().unwrap();
-    
-            let image = Image::decode(ImageEncoding::srtm(), &body[..]).unwrap();
-            let image_mapped = crate::preview::make_preview(&image, reqConf.min_val, reqConf.max_val).unwrap();
-            Ok(Response::with((iron::status::Ok, "image/png", image_mapped.data)))
-        },
-        None => {
-            Ok(Response::with((iron::status::Ok, "text/plain", "failed somehow")))
-        }
-    }
+    let query_str = match r.url.query() {
+        Some(query_str) => query_str,
+        None => return Ok(Response::with((iron::status::Ok, "text/plain", "somehow getting the query string failed?")))
+    };
 
-    //Ok(Response::with((iron::status::Ok, "text/plain", "hello")))
+    let decoded_query_str = match urlencoding::decode(query_str) {
+        Ok(decoded) => decoded,
+        Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "query string encoding was malformed")))
+    };
+
+    let conf = match serde_json::from_str::<PreviewRequest>(&decoded_query_str) {
+        Ok(config) => config,
+        Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "failed to parse preview request struct")))
+    };
+    
+    let req_res = match reqwest::blocking::get("https://spkit.org/datasets/remapped/222_144_000.hgt") {
+        Ok(res) => res,
+        Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "requesting resource from server failed")))
+    };
+
+    let body = match req_res.bytes() {
+        Ok(body) => body,
+        Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "requesting resource body from server failed")))
+    };
+
+    let image = match Image::decode(ImageEncoding::srtm(), &body[..]) {
+        Ok(image) => image,
+        Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "decoding the image bytes failed")))
+    };
+
+    match crate::preview::make_preview(&image, conf.min_val, conf.max_val) {
+        Some(png_bytes) => Ok(Response::with((iron::status::Ok, "image/png", png_bytes.data))),
+        None => Ok(Response::with((iron::status::Ok, "text/plain", "generating preview failed")))
+    }
 }
 
 pub fn run() {
-    let mut chain = Chain::new(hello_world);
+    let chain = Chain::new(hello_world);
     // chain.link_before(ResponseTime);
     // chain.link_after(ResponseTime);
-    Iron::new(chain).http("localhost:3000");
+    Iron::new(chain).http("localhost:3000").unwrap();
 }

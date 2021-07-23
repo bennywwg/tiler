@@ -30,8 +30,6 @@ async fn main() {
         println!("{}", idx);
     }
 
-    return;
-
     let preview_request = http_api::PreviewRequest {
         min_val: 0.0,
         max_val: 400.0,
