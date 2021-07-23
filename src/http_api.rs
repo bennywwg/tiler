@@ -29,6 +29,11 @@ fn hello_world(r: &mut Request) -> IronResult<Response> {
         Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "failed to parse preview request struct")))
     };
     
+    let image_encoding = match conf.config.encoding {
+        Some(encoding) => encoding,
+        None => return Ok(Response::with((iron::status::Ok, "text/plain", "dataset config does not have an explicit encoding")))
+    };
+
     let req_res = match reqwest::blocking::get("https://spkit.org/datasets/remapped/222_144_000.hgt") {
         Ok(res) => res,
         Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "requesting resource from server failed")))
@@ -39,7 +44,7 @@ fn hello_world(r: &mut Request) -> IronResult<Response> {
         Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "requesting resource body from server failed")))
     };
 
-    let image = match Image::decode(ImageEncoding::srtm(), &body[..]) {
+    let image = match Image::decode(image_encoding, &body[..]) {
         Ok(image) => image,
         Err(_) => return Ok(Response::with((iron::status::Ok, "text/plain", "decoding the image bytes failed")))
     };
