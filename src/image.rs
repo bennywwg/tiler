@@ -1,12 +1,12 @@
 use serde::{Serialize, Deserialize};
 use glam::*;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum ImageCompression {
     Raw, PNG, TIFF
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct ImageEncoding {
     pub size: IVec2,
     pub bit_depth: i32,
@@ -50,11 +50,11 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn decode(encoding: ImageEncoding, data: &[u8]) -> Result<Self, String> {
+    pub fn decode(encoding: &ImageEncoding, data: &[u8]) -> Result<Self, String> {
         match encoding.compression {
             ImageCompression::Raw => {
                 if encoding.size.x as usize * encoding.size.y as usize * encoding.channels as usize * (encoding.bit_depth / 8) as usize == data.len() {
-                    Ok(Image { encoding, data: data.to_vec() })
+                    Ok(Image { encoding: *encoding, data: data.to_vec() })
                 } else {
                     Err("Image incorrectly encoded".to_string())
                 }

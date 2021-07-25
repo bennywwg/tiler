@@ -8,29 +8,6 @@ pub mod math {
     pub struct Dabb2 {
         pub begin: IVec2,
         pub end: IVec2
-        /*
-        using value_type = glm::vec<2, T>;
-
-        value_type Begin, End;
-
-        T Area() const;
-
-        bool Empty() const;
-
-        void ClampInto(DiscreteAABB2<T> const& other);
-
-        bool IsCompletelyInside(DiscreteAABB2 const& other) const;
-
-        DiscreteAABB2<T> operator&&(DiscreteAABB2<T> const& other) const;
-
-        // Mathematical operations take place on begin and end
-
-        DiscreteAABB2<T> operator+(glm::vec<2, T> const& shift) const;
-        DiscreteAABB2<T> operator-(glm::vec<2, T> const& shift) const;
-        DiscreteAABB2<T> operator*(T const& rhs) const;
-        DiscreteAABB2<T> operator*(glm::vec<2, T> const& rhs) const;
-        DiscreteAABB2<T> operator/(glm::vec<2, T> const& rhs) const;
-        */
     }
 
     impl Dabb2 {

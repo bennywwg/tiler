@@ -8,7 +8,7 @@ use crate::config::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PreviewRequest {
-    pub config: DatasetConfig,
+    pub config: Config,
     pub coord: IVec3,
     pub min_val: f32,
     pub max_val: f32
@@ -39,7 +39,7 @@ fn hello_world(r: &mut Request) -> IronResult<Response> {
     let b = client.get(uri).send()
             .or(Err((iron::status::BadGateway, "text/plain", "requesting resource from server failed")))
         .and_then(|r| r.bytes().or(Err((iron::status::BadGateway, "text/plain", "requesting resource body from server failed"))))
-        .and_then(|i| Image::decode(encoding, &i[..]).or(Err((iron::status::InternalServerError, "text/plain", "decoding the image bytes failed"))));
+        .and_then(|i| Image::decode(&encoding, &i[..]).or(Err((iron::status::InternalServerError, "text/plain", "decoding the image bytes failed"))));
 
     let image = match b {
         Ok(i) => i,

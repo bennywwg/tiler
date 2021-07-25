@@ -6,7 +6,7 @@ pub mod dataset_cache;
 pub mod http_api;
 pub mod uri_format;
 
-use crate::config::DatasetConfig;
+use crate::config::Config;
 use glam::*;
 use crate::image::ImageEncoding;
 
@@ -16,7 +16,7 @@ async fn main() {
         min_val: 0.0,
         max_val: 400.0,
         coord: ivec3(222, 144, 0),
-        config: DatasetConfig {
+        config: Config {
             tile_uri_format: "https://spkit.org/datasets/remapped/222_144_000.hgt".to_string(),
             encoding: Some(ImageEncoding::srtm())
         }
