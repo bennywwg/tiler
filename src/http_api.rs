@@ -30,7 +30,13 @@ fn hello_world(r: &mut Request) -> IronResult<Response> {
         .timeout(Duration::from_secs(999))
         .build().unwrap();
 
-    let b = client.get("https://spkit.org/datasets/remapped/222_144_000.hgt").send()
+    let uri = crate::uri_fmt!(&preview_request.config.tile_uri_format, {
+        "x" => preview_request.coord.x,
+        "y" => preview_request.coord.y,
+        "z" => preview_request.coord.z
+    }).unwrap();
+
+    let b = client.get(uri).send()
             .or(Err((iron::status::BadGateway, "text/plain", "requesting resource from server failed")))
         .and_then(|r| r.bytes().or(Err((iron::status::BadGateway, "text/plain", "requesting resource body from server failed"))))
         .and_then(|i| Image::decode(encoding, &i[..]).or(Err((iron::status::InternalServerError, "text/plain", "decoding the image bytes failed"))));
