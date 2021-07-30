@@ -14,7 +14,8 @@ reqwest = { version = "*", features = [ "json", "blocking" ]}
 tokio = { version = "*", features = [ "full" ]}
 bytes = "*"
 num = "*"
-iron = "*"
 url = "*"
 urlencoding = "*"
 regex = "*"
+warp = "*"
+serde_urlencoded = "*"
