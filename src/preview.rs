@@ -68,14 +68,17 @@ pub fn make_preview(image: &Image, min: f32, max: f32) -> Option<Image> {
         res_data[i * 3 + 2] = b;
     }
 
-    let a = image_ext::RgbImage::from_raw(image.encoding.size.x as u32, image.encoding.size.y as u32, res_data)?;
+    let a = image_ext::RgbImage::from_raw(image.format.size.x as u32, image.format.size.y as u32, res_data)?;
     let d = image_ext::DynamicImage::ImageRgb8(a);
 
     let mut asdf = vec![];
     d.write_to(&mut asdf, image_ext::ImageOutputFormat::Png).ok()?;
 
     Some(Image {
-         encoding: ImageEncoding::color(image.encoding.size, ImageCompression::PNG),
-         data: asdf
+        format: ImageFormat {
+            encoding: PixelEncoding::color(),
+            size: image.format.size
+        },
+        data: asdf
     })
 }

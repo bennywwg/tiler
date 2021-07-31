@@ -8,11 +8,9 @@ use crate::image::*;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PreviewRequest {
     pub tile_uri_format: String,
-    pub x: i32,
-    pub y: i32,
-    pub z: i32,
-    pub min_val: f32,
-    pub max_val: f32
+    pub decode_info: Option<ImageCodec>,
+    pub coord: IVec3,
+    pub range: Vec2
 }
 
 macro_rules! warp_reject {
@@ -40,28 +38,30 @@ warp_reject!(String as ImageDecodeError);
 warp_reject!(reqwest::Error as ReqwestError);
 
 async fn hello_world(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp::Rejection>{
-    let encoding = ImageEncoding::srtm();
-
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(999))
         .build().unwrap();
 
     let uri = crate::uri_fmt!(&r.tile_uri_format, {
-        "x" => r.x,
-        "y" => r.y,
-        "z" => r.z
+        "x" => r.coord.x,
+        "y" => r.coord.y,
+        "z" => r.coord.z
     }).map_err(|e| UriFormatError(e))?;
     
-    let bytes = client
+    let bytes
+        =client
         .get(uri)
         .send().await.map_err(|e| ReqwestError(e))?
         .error_for_status().map_err(|e| ReqwestError(e))?
         .bytes().await.map_err(|e| ReqwestError(e))?;
 
-    let image = Image::decode(&encoding, &bytes[..])
-        .map_err(|e| ImageDecodeError(e))?;
+    // In the future, 
+    let di = r.decode_info.ok_or(PreviewGenerateError)?;
 
-    let preview = crate::preview::make_preview(&image, r.min_val, r.max_val)
+    let image = Image::decode(di, &bytes[..]).map_err(|_| PreviewGenerateError)?;
+
+    let preview
+        =crate::preview::make_preview(&image, r.range.x, r.range.y)
         .ok_or(PreviewGenerateError)?;
     
     Ok(warp::http::Response::builder()

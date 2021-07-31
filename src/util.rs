@@ -4,7 +4,7 @@ pub mod math {
     use std::ops::*;
 
     // discrete abb2
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
     pub struct Dabb2 {
         pub begin: IVec2,
         pub end: IVec2
@@ -26,6 +26,12 @@ pub mod math {
                 begin,
                 end
             }
+        }
+        pub fn clamp_into(&mut self, other: Self) {
+            if self.end.x > other.end.x     { self.end.x = other.end.x; }
+            if self.begin.x < other.begin.x { self.begin.x = other.begin.x; }
+            if self.end.y > other.end.y     { self.end.y = other.end.y; }
+            if self.begin.y < other.begin.y { self.begin.y = other.begin.y; }
         }
     }
 
@@ -92,6 +98,16 @@ pub mod math {
                 begin: self.begin / rhs,
                 end: self.end / rhs
             }
+        }
+    }
+    
+    impl BitAnd<Dabb2> for Dabb2 {
+        type Output = Self;
+
+        fn bitand(self, rhs: Dabb2) -> Self {
+            let mut res = Self::bounds(self.begin, self.end);
+            res.clamp_into(rhs);
+            return res
         }
     }
 
