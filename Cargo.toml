@@ -9,13 +9,9 @@ edition = "2018"
 image = "*"
 glam = { version = "*", features = ["serde"]}
 serde = { version = "*", features = ["derive"]}
-serde_json = "*"
 reqwest = { version = "*", features = [ "json", "blocking" ]}
 tokio = { version = "*", features = [ "full" ]}
-bytes = "*"
 num = "*"
-url = "*"
-urlencoding = "*"
 regex = "*"
 warp = "*"
-serde_urlencoded = "*"
+serde_qs = { version = "*", features = [ "warp" ]}

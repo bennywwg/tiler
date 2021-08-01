@@ -37,7 +37,7 @@ warp_reject!(String as UriFormatError);
 warp_reject!(String as ImageDecodeError);
 warp_reject!(reqwest::Error as ReqwestError);
 
-async fn hello_world(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp::Rejection>{
+async fn get_preview(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp::Rejection> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(999))
         .build().unwrap();
@@ -48,20 +48,17 @@ async fn hello_world(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp:
         "z" => r.coord.z
     }).map_err(|e| UriFormatError(e))?;
     
-    let bytes
-        =client
+    let bytes = client
         .get(uri)
         .send().await.map_err(|e| ReqwestError(e))?
         .error_for_status().map_err(|e| ReqwestError(e))?
         .bytes().await.map_err(|e| ReqwestError(e))?;
 
-    // In the future, 
-    let di = r.decode_info.ok_or(PreviewGenerateError)?;
+    let di = r.decode_info.ok_or(ImageDecodeError("Must provide a value for decode_info (for now)".into()))?;
 
-    let image = Image::decode(di, &bytes[..]).map_err(|_| PreviewGenerateError)?;
+    let image = Image::decode(di, &bytes[..]).map_err(|e| ImageDecodeError(e))?;
 
-    let preview
-        =crate::preview::make_preview(&image, r.range.x, r.range.y)
+    let preview = crate::preview::make_preview(&image, r.range.x, r.range.y)
         .ok_or(PreviewGenerateError)?;
     
     Ok(warp::http::Response::builder()
@@ -71,8 +68,8 @@ async fn hello_world(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp:
 
 pub async fn run() {
     let routes = warp::get()
-        .and(warp::query::<PreviewRequest>())
-        .and_then(hello_world);
+        .and(serde_qs::warp::query::<PreviewRequest>(serde_qs::Config::default()))
+        .and_then(get_preview);
 
     warp::serve(routes)
         .run(([127, 0, 0, 1], 3000))

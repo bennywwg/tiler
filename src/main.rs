@@ -12,28 +12,28 @@ pub mod retiling;
 
 #[tokio::main]
 async fn main() {
-    let dp = config::DatasetProvider {
-        tile_uri_format: "https://67.175.122.81/datasets/remapped/222_144_000.hgt".to_string(),
-        codec: ImageCodec::srtm(),
-        tilespace: Tilespace {
-            size: ivec2(1201, 1201),
-            offset: ivec2(0, 0)
-        }
-    };
+    // let dp = config::DatasetProvider {
+    //     tile_uri_format: "https://67.175.122.81/datasets/remapped/222_144_000.hgt".to_string(),
+    //     codec: ImageCodec::srtm(),
+    //     tilespace: Tilespace {
+    //         size: ivec2(1201, 1201),
+    //         offset: ivec2(0, 0)
+    //     }
+    // };
 
-    let dw = config::DatasetWriter {
-        tile_uri_format: "https://67.175.122.81/datasets/remapped/222_144_000.hgt".to_string(),
-        codec: ImageCodec::srtm(),
-        tilespace: Tilespace {
-            size: ivec2(512, 512),
-            offset: ivec2(0, 0)
-        }
-    };
+    // let dw = config::DatasetWriter {
+    //     tile_uri_format: "https://67.175.122.81/datasets/remapped/222_144_000.hgt".to_string(),
+    //     codec: ImageCodec::srtm(),
+    //     tilespace: Tilespace {
+    //         size: ivec2(512, 512),
+    //         offset: ivec2(0, 0)
+    //     }
+    // };
 
-    let jobs = retiling::gen_jobs(&dp, &dw, util::math::Dabb2::bounds(ivec2(0,0), ivec2(2000,2000)), 0, 0);
-    println!("{:?}", jobs);
+    // let jobs = retiling::gen_jobs(&dp, &dw, util::math::Dabb2::bounds(ivec2(0,0), ivec2(2000,2000)), 0, 0);
+    // println!("{:?}", jobs);
 
-    return;
+    // return;
 
     let preview_request = http_api::PreviewRequest {
         tile_uri_format: "https://67.175.122.81/datasets/remapped/222_144_000.hgt".to_string(),
@@ -42,7 +42,9 @@ async fn main() {
         range: vec2(0.0, 400.0),
     };
 
-    println!("{}", serde_urlencoded::to_string(&preview_request).unwrap());
+    let s = serde_qs::to_string(&preview_request).unwrap();
+    println!("{}", s);
+    println!("{:?}", serde_qs::from_str::<http_api::PreviewRequest>(&s));
     
     http_api::run().await;
 }
