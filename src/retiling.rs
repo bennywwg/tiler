@@ -21,6 +21,7 @@ pub struct OutputAccumulator {
 
 }
 
+/*
 async fn add_samples(dp: &DatasetProvider, dw: &DatasetWriter, job: Job) {
     let output_pixel_begin = dw.tilespace.tile_pixels_level(job.output_coord).begin;
 
@@ -41,6 +42,7 @@ async fn add_samples(dp: &DatasetProvider, dw: &DatasetWriter, job: Job) {
         println!("pretending to output {:?}", region);
     }
 }
+*/
 
 pub fn gen_jobs(dp: &DatasetProvider, dw: &DatasetWriter, pixel_region: Dabb2, begin_level: i32, end_level: i32) -> Vec<Job> {
     (end_level..=begin_level).flat_map(|level| {

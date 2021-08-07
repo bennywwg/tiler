@@ -1,4 +1,4 @@
-use crate::{config::Tilespace, image::ImageCodec};
+use crate::{image::ImageCodec};
 use glam::*;
 
 pub mod config;
@@ -43,9 +43,9 @@ async fn main() {
         range: vec2(0.0, 400.0),
     };
 
-    //let s = serde_json::to_string(&preview_request).unwrap();
-    //println!("{}", s);
-    //println!("{:?}", serde_qs::from_str::<http_api::PreviewRequest>(&s));
+    let s = serde_json::to_string(&preview_request).unwrap();
+    println!("{}", s);
+    //println!("{:?}", serde_json::from_str::<http_api::PreviewRequest>(&s));
     
     http_api::run().await;
 }
