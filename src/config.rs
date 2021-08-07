@@ -4,6 +4,7 @@ use glam::*;
 use core::time::Duration;
 use crate::uri_format::*;
 use crate::util::math::*;
+use warp::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Tilespace {
@@ -56,13 +57,25 @@ impl DatasetProvider {
         }            
     }
     pub async fn load_resource(&self, coord: IVec3) -> Option<Image> {
-        /*reqwest::Client::builder()
-        .timeout(Duration::from_secs(999))
-        .build().unwrap()
-        .get(self.get_resource_uri(coord)).send().await
-        .or(Err("abc".to_string()))?
-        .bytes().await.or(Err("load body bytes failed".to_string()))
-        .and_then(|bytes| Image::decode(&self.encoding, &bytes[..]))*/
-        None
+        let client
+        =reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build().unwrap();
+
+        let uri
+        =crate::uri_fmt!(&self.tile_uri_format, {
+            "x" => coord.x,
+            "y" => coord.y,
+            "z" => coord.z
+        }).ok()?;
+        
+        let bytes
+        =client
+        .get(uri)
+        .send().await.ok()?
+        .error_for_status().ok()?
+        .bytes().await.ok()?;
+
+        Image::decode(self.codec, &bytes[..]).ok()
     }
 }
