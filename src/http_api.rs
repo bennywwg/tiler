@@ -41,7 +41,7 @@ warp_reject!(reqwest::Error as ReqwestError);
 async fn get_preview(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp::Rejection> {
     let client
     =reqwest::Client::builder()
-    .timeout(Duration::from_secs(10))
+    .timeout(Duration::from_secs(30))
     .build().unwrap();
 
     let uri
