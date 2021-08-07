@@ -7,7 +7,7 @@ pub trait Formattable {
 
 impl Formattable for i32 {
     fn format(&self, fmt: &str) -> Result<String, String> { 
-        let pad: usize = fmt.parse().map_err(|e| "Format string for i32 must be an integer".to_string())?;
+        let pad: usize = fmt.parse().map_err(|_e| "Format string for i32 must be an integer".to_string())?;
 
         Ok(format!("{1:0>0$}", pad, *self))
     }

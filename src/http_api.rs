@@ -5,6 +5,7 @@ use warp::*;
 
 use crate::image::*;
 use crate::serde_json_warp;
+use crate::config::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PreviewRequest {
@@ -39,28 +40,15 @@ warp_reject!(String as ImageDecodeError);
 warp_reject!(reqwest::Error as ReqwestError);
 
 async fn get_preview(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp::Rejection> {
-    let client
-    =reqwest::Client::builder()
-    .timeout(Duration::from_secs(30))
-    .build().unwrap();
+    let codec = r.decode_info.ok_or(reject())?;
 
-    let uri
-    =crate::uri_fmt!(&r.tile_uri_format, {
-        "x" => r.coord.x,
-        "y" => r.coord.y,
-        "z" => r.coord.z
-    }).map_err(|e| UriFormatError(e))?;
-    
-    let bytes
-    =client
-    .get(uri)
-    .send().await.map_err(|e| ReqwestError(e))?
-    .error_for_status().map_err(|e| ReqwestError(e))?
-    .bytes().await.map_err(|e| ReqwestError(e))?;
+    let dp
+    =DatasetProvider::create(r.tile_uri_format.as_str(), codec)
+    .map_err(|_| reject())?;
 
-    let di = r.decode_info.ok_or(ImageDecodeError("Must provide a value for decode_info (for now)".into()))?;
-
-    let image = Image::decode(di, &bytes[..]).map_err(|e| ImageDecodeError(e))?;
+    let image
+    =dp.load_resource(r.coord).await
+    .ok_or(PreviewGenerateError)?;
 
     let preview
     =crate::preview::make_preview(&image, r.range.x, r.range.y)

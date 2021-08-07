@@ -86,7 +86,7 @@ impl Image {
         }
     }
 
-    pub fn guess_decode(data: &[u8]) -> Result<(Self, ImageCodec), String> {
+    pub fn guess_decode(_data: &[u8]) -> Result<(Self, ImageCodec), String> {
         Err("Not yet implemented".to_string())
     }
 }

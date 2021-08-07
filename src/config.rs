@@ -1,10 +1,8 @@
 use serde::{Serialize, Deserialize};
-use crate::image::{Image, ImageCodec, PixelEncoding};
+use crate::image::{Image, ImageCodec};
 use glam::*;
 use core::time::Duration;
-use crate::uri_format::*;
 use crate::util::math::*;
-use warp::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Tilespace {
@@ -50,6 +48,20 @@ fn format_tile_string(template: &str, coord: IVec3) -> Result<String, String> {
 }
 
 impl DatasetProvider {
+    // tilespace will be whatever size code has, with an offset of 0
+    pub fn create(tile_uri_format: &str, codec: ImageCodec) -> Result<Self, String> {
+        // Verify that tile format can produce a valid result
+        format_tile_string(tile_uri_format, ivec3(0,0,0))?;
+
+        Ok(DatasetProvider {
+            tile_uri_format: tile_uri_format.to_string(),
+            codec,
+            tilespace: Tilespace {
+                offset: ivec2(0,0),
+                size: codec.size
+            }
+        })
+    }
     fn get_resource_uri(&self, coord: IVec3) -> String {
         match format_tile_string(self.tile_uri_format.as_str(), coord) {
             Ok(str) => str,
@@ -61,17 +73,10 @@ impl DatasetProvider {
         =reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
         .build().unwrap();
-
-        let uri
-        =crate::uri_fmt!(&self.tile_uri_format, {
-            "x" => coord.x,
-            "y" => coord.y,
-            "z" => coord.z
-        }).ok()?;
         
         let bytes
         =client
-        .get(uri)
+        .get(self.get_resource_uri(coord))
         .send().await.ok()?
         .error_for_status().ok()?
         .bytes().await.ok()?;
