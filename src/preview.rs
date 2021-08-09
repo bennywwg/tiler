@@ -55,12 +55,14 @@ pub fn transform_pixel(val: i16, min: f32, inv_range: f32) -> (u8, u8, u8) {
     (colorized.x as u8, colorized.y as u8, colorized.z as u8)
 }
 
-pub fn make_preview(image: &Image, min: f32, max: f32) -> Option<Image> {
-    let mut res_data = vec![0u8; image.data.len() / 2 * 3];
+pub fn make_preview(image: &impl Image, min: f32, max: f32) -> Option<ImageOwned> {
+    let data = image.get_shared_backing();
+
+    let mut res_data = vec![0u8; data.len() / 2 * 3];
 
     let inv_range = 1.0  / (max - min);
-    for i in 0..(image.data.len() / 2) {
-        let val: i16 = (image.data[i * 2] as i16) << 8 | (image.data[i * 2 + 1] as i16);
+    for i in 0..(data.len() / 2) {
+        let val: i16 = (data[i * 2] as i16) << 8 | (data[i * 2 + 1] as i16);
         
         let (r, g, b) = transform_pixel(val, min, inv_range);
         res_data[i * 3] = r;
@@ -68,16 +70,16 @@ pub fn make_preview(image: &Image, min: f32, max: f32) -> Option<Image> {
         res_data[i * 3 + 2] = b;
     }
 
-    let a = image_ext::RgbImage::from_raw(image.format.size.x as u32, image.format.size.y as u32, res_data)?;
+    let a = image_ext::RgbImage::from_raw(image.get_format().size.x as u32, image.get_format().size.y as u32, res_data)?;
     let d = image_ext::DynamicImage::ImageRgb8(a);
 
     let mut asdf = vec![];
     d.write_to(&mut asdf, image_ext::ImageOutputFormat::Png).ok()?;
 
-    Some(Image {
+    Some(ImageOwned{
         format: ImageFormat {
             encoding: PixelEncoding::color(),
-            size: image.format.size
+            size: image.get_format().size
         },
         data: asdf
     })

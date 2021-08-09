@@ -41,8 +41,8 @@ warp_reject!(reqwest::Error as ReqwestError);
 async fn get_preview(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp::Rejection> {
     let codec = r.decode_info.ok_or(reject())?;
 
-    let dp
-    =DatasetProvider::create(r.tile_uri_format.as_str(), codec)
+    let mut dp
+    =DatasetProvider::create(r.tile_uri_format.as_str(), codec).await
     .map_err(|_| reject())?;
 
     let image

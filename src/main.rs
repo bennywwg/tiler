@@ -10,6 +10,7 @@ pub mod http_api;
 pub mod uri_format;
 pub mod retiling;
 pub mod serde_json_warp;
+pub mod network_util;
 
 #[tokio::main]
 async fn main() {

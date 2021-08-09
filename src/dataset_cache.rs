@@ -1,7 +1,9 @@
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::vec::Vec;
 //use std::ops::{Index, IndexMut};
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct DatasetCache {
     time: u64,
     existing:   HashMap<String, (usize, u64)>,

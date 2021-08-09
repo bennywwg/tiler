@@ -21,15 +21,14 @@ pub struct OutputAccumulator {
 
 }
 
-/*
-async fn add_samples(dp: &DatasetProvider, dw: &DatasetWriter, job: Job) {
+async fn add_samples(dp: &mut DatasetProvider, dw: &DatasetWriter, job: Job) {
     let output_pixel_begin = dw.tilespace.tile_pixels_level(job.output_coord).begin;
 
     for region in job.sample_regions.into_iter() {
-        /*let image = match dp.load_resource(region.input_coord).await {
+        let image = match dp.load_resource(region.input_coord).await {
             Some(img) => img,
-            None => continue;
-        };*/
+            None => continue
+        };
 
         let input_coord_pixel_begin = dp.tilespace.tile_pixels_level(region.input_coord).begin;
 
@@ -42,7 +41,6 @@ async fn add_samples(dp: &DatasetProvider, dw: &DatasetWriter, job: Job) {
         println!("pretending to output {:?}", region);
     }
 }
-*/
 
 pub fn gen_jobs(dp: &DatasetProvider, dw: &DatasetWriter, pixel_region: Dabb2, begin_level: i32, end_level: i32) -> Vec<Job> {
     (end_level..=begin_level).flat_map(|level| {
