@@ -1,8 +1,9 @@
 use serde::{Serialize, Deserialize};
 use glam::*;
+use ::image as image_ext;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-pub enum ImageCompression {
+pub enum ImageFiletype {
     Raw, PNG, TIFF
 }
 
@@ -30,7 +31,7 @@ impl ImageFormat {
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct ImageCodec {
     pub format: ImageFormat,
-    pub compression: ImageCompression
+    pub filetype: ImageFiletype
 }
 
 impl PixelEncoding {
@@ -62,18 +63,18 @@ impl ImageCodec {
                 encoding: PixelEncoding::srtm(),
                 size: ivec2(1201, 1201)
             },
-            compression: ImageCompression::Raw,
+            filetype: ImageFiletype::Raw,
         }
     }
 }
 
 fn decode_image(codec: ImageCodec, dst: &mut[u8], src: &[u8]) {
-    match codec.compression {
-        ImageCompression::Raw => {
+    match codec.filetype {
+        ImageFiletype::Raw => {
             if codec.format.raw_size() == src.len() {
                 dst.copy_from_slice(src);
             } else {
-                panic!("Image incorrectly encoded".to_string());
+                panic!("{}", "Image incorrectly encoded".to_string());
             }
         },
         _ => panic!("not implemented")
@@ -84,6 +85,43 @@ pub trait Image {
     fn get_shared_backing(&self) -> &[u8];
     //fn get_backing(&mut self) -> &mut[u8];
     fn get_format(&self) -> ImageFormat;
+    fn compress(&self, filetype: ImageFiletype) -> Result<Vec<u8>,String> {
+        return match filetype {
+            ImageFiletype::Raw => {
+                let mut res = vec![];
+                res.extend_from_slice(self.get_shared_backing());
+                Ok(res)
+            },
+            ImageFiletype::PNG => {
+                let a =
+                image_ext::RgbImage::from_raw(
+                    self.get_format().size.x as u32,
+                     self.get_format().size.y as u32,
+                      self.get_shared_backing().to_vec()).ok_or("Failed to create image")?;
+                let d = image_ext::DynamicImage::ImageRgb8(a);
+        
+                let mut res = vec![];
+                d.write_to(&mut res, image_ext::ImageOutputFormat::Png).map_err(|e| e.to_string())?;
+        
+                Ok(res)
+            },
+            ImageFiletype::TIFF => panic!()
+        }
+    }
+}
+
+pub trait ImageWriteable : Image {
+    fn get_backing(&mut self) -> &mut[u8];
+    fn get_pixel_mem<T: num::Integer>(&mut self, mem_index: usize) -> &mut T {
+        assert!(mem_index + std::mem::size_of::<T>() <= self.get_backing().len());
+        unsafe { std::mem::transmute::<&mut u8, &mut T>(&mut self.get_backing()[mem_index]) }
+    }
+
+    // Recommended to use get_pixel_mem for repeated operations for performance reasons
+    // that function should compile down to nothing
+    fn get_pixel<T: num::Integer>(&mut self, px: IVec2) -> &mut T {
+        self.get_pixel_mem(px.y as usize * self.get_format().size.x as usize + px.x as usize)
+    }
 }
 
 #[derive(Debug)]
@@ -96,11 +134,6 @@ impl<'a> Image for ImageBacked<'a> {
     fn get_shared_backing(&self) -> &[u8] {
         self.data
     }
-
-    //fn get_backing(&mut self) -> &'a mut[u8] {
-    //    self.data
-    //}
-
     fn get_format(&self) -> ImageFormat {
         self.format
     }
@@ -136,14 +169,25 @@ impl ImageOwned {
             data: vec
         })
     }
+    pub fn empty_new(format: ImageFormat) -> Self {
+        ImageOwned {
+            format: format,
+            data: vec![0; format.raw_size()]
+        }
+    }
 }
 
-impl ImageOwned {
+impl Image for ImageOwned {
     fn get_shared_backing(&self) -> &[u8] {
         &self.data[..]
     }
+    fn get_format(&self) -> ImageFormat {
+        self.format
+    }
+}
 
-    //fn get_backing(&mut self) -> & mut[u8] {
-    //    &self.data[..]
-    //}
+impl ImageWriteable for ImageOwned {
+    fn get_backing(&mut self) -> &mut[u8] {
+        &mut self.data[..]
+    }
 }

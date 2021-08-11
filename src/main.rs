@@ -11,6 +11,8 @@ pub mod uri_format;
 pub mod retiling;
 pub mod serde_json_warp;
 pub mod network_util;
+pub mod dataset;
+pub mod dataset_writer;
 
 #[tokio::main]
 async fn main() {
@@ -36,9 +38,10 @@ async fn main() {
     // println!("{:?}", jobs);
 
     // return;
-
+    
     let preview_request = http_api::PreviewRequest {
         tile_uri_format: "https://spkit.org/datasets/srtm/remapped/{x:3}_{y:3}_{z:3}.hgt".to_string(),
+        manifest_uri: "https://spkit.org/datasets/srtm/remapped/manifest.json".to_string(),
         decode_info: Some(ImageCodec::srtm()),
         coord: ivec3(222, 144, 0),
         range: vec2(0.0, 400.0),

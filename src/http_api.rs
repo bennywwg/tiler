@@ -10,6 +10,7 @@ use crate::config::*;
 pub struct PreviewRequest {
     pub tile_uri_format: String,
     pub decode_info: Option<ImageCodec>,
+    pub manifest_uri: String,
     pub coord: IVec3,
     pub range: Vec2
 }
@@ -42,7 +43,7 @@ async fn get_preview(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp:
     let codec = r.decode_info.ok_or(reject())?;
 
     let mut dp
-    =DatasetProvider::create(r.tile_uri_format.as_str(), codec).await
+    =DatasetProvider::create(r.tile_uri_format.as_str(), codec, r.manifest_uri.as_str()).await
     .map_err(|_| reject())?;
 
     let image
