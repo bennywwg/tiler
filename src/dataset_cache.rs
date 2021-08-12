@@ -46,11 +46,9 @@ impl DatasetCache {
         lru_val.0
     }
     
-    pub fn access(&mut self, key: &str) -> Option<&[u8]> {
-        match self.existing.get_mut(key) {
-            Some((i, t)) => {
-                self.time += 1;
-                *t = self.time;
+    pub fn access(&self, key: &str) -> Option<&[u8]> {
+        match self.existing.get(key) {
+            Some((i, _t)) => {
                 Some(&self.data[*i..*i+self.size])
             }
             None => None

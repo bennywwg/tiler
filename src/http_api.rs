@@ -46,9 +46,12 @@ async fn get_preview(r: PreviewRequest) -> Result<impl warp::reply::Reply, warp:
     =DatasetProvider::create(r.tile_uri_format.as_str(), codec, r.manifest_uri.as_str()).await
     .map_err(|_| reject())?;
 
+    dp.cache_resource(r.coord).await
+    .map_err(|_es| PreviewGenerateError)?;
+    
     let image
-    =dp.load_resource(r.coord).await
-    .ok_or(PreviewGenerateError)?;
+        =dp.access_cached_resource(r.coord)
+        .ok_or(PreviewGenerateError)?;
 
     let preview
     =crate::preview::make_preview(&image, r.range.x, r.range.y)

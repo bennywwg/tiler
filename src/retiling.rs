@@ -1,16 +1,12 @@
-use crate::image::ImageCodec;
-use crate::image::ImageFormat;
-use crate::image::{ImageOwned, ImageWriteable};
-use crate::image::PixelEncoding;
+use crate::image::Image;
 use crate::util::math::*;
 use crate::config::*;
 use crate::dataset_writer::*;
 
 use glam::*;
-use image::ImageEncoder;
 use serde::{Serialize, Deserialize};
-use std::primitive;
 use std::vec::Vec;
+use crate::sample_accumulator::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SampleRegion {
@@ -24,65 +20,62 @@ pub struct Job {
     pub sample_regions: Vec<SampleRegion>
 }
 
-pub struct OutputAccumulator {
-    pub size: IVec2,
-    pub data: Vec<i64>,
-    pub samples: Vec<i64>
-}
-
-impl OutputAccumulator {
-    pub fn index_of(&self, px: &IVec2) -> usize {
-        px.y as usize * self.size.x as usize + px.x as usize
-    }
-    pub fn add_sample<T: num::cast::AsPrimitive<i64>>(&mut self, px: &IVec2, sample: &T) {
-        let index = self.index_of(px);
-        self.data[index] += sample.as_();
-        self.samples[index] += 1;
-    }
-    fn resolve_templated<T: num::NumCast + num::Integer>(&self, encoding: PixelEncoding) -> ImageOwned {
-        let mut res = ImageOwned::empty_new(ImageFormat { encoding, size: self.size });
-        for y in 0..self.size.y {
-            let line_index = y as usize * self.size.x as usize;
-            for x in 0..self.size.x {
-                let index = line_index + x as usize;
-                *res.get_pixel_mem::<T>(index * std::mem::size_of::<T>()) = num::cast(self.data[index] / self.samples[index]).unwrap();
-            }
-        }
-        res
-    }
-    pub fn resolve(&self, encoding: PixelEncoding) -> ImageOwned {
-        match (encoding.bit_depth, encoding.signed) {
-            (8,  true)  => { self.resolve_templated::<i8 >(encoding) },
-            (16, true)  => { self.resolve_templated::<i16>(encoding) },
-            (32, true)  => { self.resolve_templated::<i32>(encoding) },
-            (64, true)  => { self.resolve_templated::<i64>(encoding) },
-            (8,  false) => { self.resolve_templated::<u8 >(encoding) },
-            (16, false) => { self.resolve_templated::<u16>(encoding) },
-            (32, false) => { self.resolve_templated::<u32>(encoding) },
-            (64, false) => { self.resolve_templated::<u64>(encoding) },
-            _ => panic!()
-        }
-    }
-}
-
-async fn add_samples(dp: &mut DatasetProvider, dw: &DatasetWriter, job: Job) {
+async fn add_samples_templated<T>(dp: &mut DatasetProvider, dw: &DatasetWriter, job: &Job, samples: &mut SampleAccumulator)
+    where T: num::NumCast + num::cast::AsPrimitive<i64> + num::Integer {
     let output_pixel_begin = dw.tilespace.tile_pixels_level(job.output_coord).begin;
 
-    for region in job.sample_regions.into_iter() {
-        let image = match dp.load_resource(region.input_coord).await {
-            Some(img) => img,
-            None => continue
+    for region in job.sample_regions.iter() {
+        let divisor = 1 >> region.input_coord.z;
+
+        if let Err(_) = dp.cache_resource(region.input_coord).await {
+            continue;
+        }
+
+        // ugh. Limitation of 
+        let image = match dp.access_cached_resource(region.input_coord) {
+            Some(image) => image,
+            None => {
+                continue;
+            }
         };
 
         let input_coord_pixel_begin = dp.tilespace.tile_pixels_level(region.input_coord).begin;
 
         for pixel in region.pixel_region.into_iter() {
+            let val = image.get_pixel_shared::<T>((pixel + input_coord_pixel_begin - output_pixel_begin) / divisor);
             //let my_pixel = (pixel + input_coord_pixel_begin - output_pixel_begin) >> region.input_coord.z;
 
-            //Samples.AddSample(my_pixel, Data[Pixel.y * Conf.InputTileSize.x + Pixel.x]);
+            samples.add_sample(&pixel, val);
         }
         
         println!("pretending to output {:?}", region);
+    }
+
+    dw.write_tile(job.output_coord, &samples.resolve_templated::<T>(dw.codec.format.encoding));
+
+    return;
+}
+
+pub async fn process_all_jobs_templated<T: num::NumCast + num::cast::AsPrimitive<i64> + num::Integer>(dp: &mut DatasetProvider, dw: &DatasetWriter, jobs: &Vec<Job>) {
+    let mut samples = SampleAccumulator::new(dw.codec.format.size);
+    for job in jobs.iter() {
+        add_samples_templated::<T>(dp, dw, job, &mut samples);
+        samples.clear();
+    }
+}
+
+pub async fn process_all_jobs(dp: &mut DatasetProvider, dw: &DatasetWriter, jobs: &Vec<Job>) {
+    let encoding = dw.codec.format.encoding;
+    match (encoding.bit_depth, encoding.signed) {
+        (8 , true ) => process_all_jobs_templated::<i8 >(dp, dw, jobs).await,
+        (16, true ) => process_all_jobs_templated::<i16>(dp, dw, jobs).await,
+        (32, true ) => process_all_jobs_templated::<i32>(dp, dw, jobs).await,
+        (64, true ) => process_all_jobs_templated::<i64>(dp, dw, jobs).await,
+        (8 , false) => process_all_jobs_templated::<u8 >(dp, dw, jobs).await,
+        (16, false) => process_all_jobs_templated::<u16>(dp, dw, jobs).await,
+        (32, false) => process_all_jobs_templated::<u32>(dp, dw, jobs).await,
+        (64, false) => process_all_jobs_templated::<u64>(dp, dw, jobs).await,
+        _ => panic!()
     }
 }
 

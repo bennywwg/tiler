@@ -108,6 +108,13 @@ pub trait Image {
             ImageFiletype::TIFF => panic!()
         }
     }
+    fn get_pixel_mem_shared<T: num::Integer>(&self, mem_index: usize) -> &T {
+        assert!(mem_index + std::mem::size_of::<T>() <= self.get_shared_backing().len());
+        unsafe { std::mem::transmute::<&u8, &T>(&self.get_shared_backing()[mem_index]) }
+    }
+    fn get_pixel_shared<T: num::Integer>(&self, px: IVec2) -> &T {
+        self.get_pixel_mem_shared(px.y as usize * self.get_format().size.x as usize + px.x as usize)
+    }
 }
 
 pub trait ImageWriteable : Image {

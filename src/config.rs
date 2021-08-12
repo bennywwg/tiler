@@ -41,30 +41,30 @@ impl DatasetProvider {
             cache: DatasetCache::new(codec.format.raw_size(), 16)
         })
     }
-    pub async fn load_resource<'a>(&'a mut self, coord: IVec3) -> Option<ImageBacked<'a>> {
+    pub async fn cache_resource(&mut self, coord: IVec3) -> Result<(),String> {
         if !self.manifest.iter().any(|&c| c == coord) {
-            return None;
+            return Ok(());
         }
         let uri = self.get_resource_uri(coord);
-        match self.cache.access_mut(uri.as_str()) {
-            DatasetCacheResult::Valid(backing) => {
-                ImageBacked::from_view(self.codec.format, backing).ok()
-            },
-            DatasetCacheResult::Invalid(backing) => {
-                let client
-                    =reqwest::Client::builder()
-                    .timeout(Duration::from_secs(30))
-                    .build().unwrap();
-                
-                let bytes
-                    =client
-                    .get(uri)
-                    .send().await.ok()?
-                    .error_for_status().ok()?
-                    .bytes().await.ok()?;
+        if let DatasetCacheResult::Invalid(backing) = self.cache.access_mut(uri.as_str()) {
+            let client
+                =reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build().unwrap();
+            
+            let bytes
+                =client
+                .get(uri)
+                .send().await.map_err(|e| e.to_string())?
+                .error_for_status().map_err(|e| e.to_string())?
+                .bytes().await.map_err(|e| e.to_string())?;
 
-                ImageBacked::decode_into(self.codec, &bytes[..], backing).ok()
-            }
-        }
+            ImageBacked::decode_into(self.codec, &bytes[..], backing)?;
+        };
+
+        return Ok(());
+    }
+    pub fn access_cached_resource<'a>(&'a self, coord: IVec3) -> Option<ImageBacked<'a>> {
+        ImageBacked::from_view(self.codec.format, self.cache.access(self.get_resource_uri(coord).as_str())?).ok()
     }
 }
