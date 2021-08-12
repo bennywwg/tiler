@@ -30,7 +30,11 @@ impl SampleAccumulator {
             let line_index = y as usize * self.size.x as usize;
             for x in 0..self.size.x {
                 let index = line_index + x as usize;
-                *res.get_pixel_mem::<T>(index * std::mem::size_of::<T>()) = num::cast(self.data[index] / self.samples[index]).unwrap();
+                *res.get_pixel_mem::<T>(index * std::mem::size_of::<T>()) =
+                num::cast(match self.samples[index] {
+                    0 => 0 as i64,
+                    val => self.data[index] / val
+                }).unwrap()
             }
         }
         res
