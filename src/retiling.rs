@@ -47,11 +47,11 @@ async fn add_samples_templated<T>(dp: &mut DatasetProvider, dw: &DatasetWriter, 
 
             samples.add_sample(&pixel, val);
         }
-        
-        println!("pretending to output {:?}", region);
     }
 
-    dw.write_tile(job.output_coord, &samples.resolve_templated::<T>(dw.codec.format.encoding));
+    if let Err(str) = dw.write_tile(job.output_coord, &samples.resolve_templated::<T>(dw.codec.format.encoding)) {
+        println!("{}", str);
+    }
 
     return;
 }
@@ -59,7 +59,7 @@ async fn add_samples_templated<T>(dp: &mut DatasetProvider, dw: &DatasetWriter, 
 pub async fn process_all_jobs_templated<T: num::NumCast + num::cast::AsPrimitive<i64> + num::Integer>(dp: &mut DatasetProvider, dw: &DatasetWriter, jobs: &Vec<Job>) {
     let mut samples = SampleAccumulator::new(dw.codec.format.size);
     for job in jobs.iter() {
-        add_samples_templated::<T>(dp, dw, job, &mut samples);
+        add_samples_templated::<T>(dp, dw, job, &mut samples).await;
         samples.clear();
     }
 }
