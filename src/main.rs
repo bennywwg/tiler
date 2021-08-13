@@ -54,8 +54,6 @@ async fn main() {
         0
     );
 
-    println!("{}", serde_json::to_string(&jobs).unwrap());
-
     process_all_jobs(&mut dp, &dw, &jobs).await;
 
     //let s = serde_json::to_string(&preview_request).unwrap();
