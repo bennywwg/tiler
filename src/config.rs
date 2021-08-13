@@ -46,25 +46,31 @@ impl DatasetProvider {
             return Ok(());
         }
         let uri = self.get_resource_uri(coord);
-        if let DatasetCacheResult::Invalid(backing) = self.cache.access_mut(uri.as_str()) {
-            let client
-                =reqwest::Client::builder()
-                .timeout(Duration::from_secs(30))
-                .build().unwrap();
-            
-            let bytes
-                =client
-                .get(uri)
-                .send().await.map_err(|e| e.to_string())?
-                .error_for_status().map_err(|e| e.to_string())?
-                .bytes().await.map_err(|e| e.to_string())?;
+        if let Some(_) = self.cache.access(uri.as_str()) {
+            return Ok(());
+        }
 
-            ImageBacked::decode_into(self.codec, &bytes[..], backing)?;
+        let client
+            =reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build().unwrap();
+        
+        let bytes
+            =client
+            .get(uri.clone())
+            .send().await.map_err(|e| e.to_string())?
+            .error_for_status().map_err(|e| e.to_string())?
+            .bytes().await.map_err(|e| e.to_string())?;
+
+        let backing = match self.cache.access_mut(uri.as_str()) {
+            DatasetCacheResult::Invalid(backing) => backing,
+            DatasetCacheResult::Valid(_) => panic!("Result should be invalid, it was invalid on the immutable version of this call")
         };
-
-        return Ok(());
+        
+        ImageBacked::decode_into(self.codec, &bytes[..], backing)
+        .map(|_| Ok(()))?
     }
     pub fn access_cached_resource<'a>(&'a self, coord: IVec3) -> Option<ImageBacked<'a>> {
-        ImageBacked::from_view(self.codec.format, self.cache.access(self.get_resource_uri(coord).as_str())?).ok()
+        Some(ImageBacked::from_view(self.codec.format, self.cache.access(self.get_resource_uri(coord).as_str())?).unwrap())
     }
 }

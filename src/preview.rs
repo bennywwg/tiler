@@ -56,7 +56,7 @@ pub fn transform_pixel(val: i16, min: f32, inv_range: f32) -> (u8, u8, u8) {
 }
 
 pub fn make_preview(image: &impl Image, min: f32, max: f32) -> Option<ImageOwned> {
-    let data = image.get_shared_backing();
+    let data = image.backing();
 
     let mut res_data = vec![0u8; data.len() / 2 * 3];
 

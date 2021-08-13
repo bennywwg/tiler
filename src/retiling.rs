@@ -2,9 +2,12 @@ use crate::image::Image;
 use crate::util::math::*;
 use crate::config::*;
 use crate::dataset_writer::*;
+use crate::dataset::*;
 
 use glam::*;
 use serde::{Serialize, Deserialize};
+use std::cmp::max;
+use std::cmp::min;
 use std::vec::Vec;
 use crate::sample_accumulator::*;
 
@@ -41,16 +44,40 @@ async fn add_samples_templated<T>(dp: &mut DatasetProvider, dw: &DatasetWriter, 
 
         let input_coord_pixel_begin = dp.tilespace.tile_pixels_level(region.input_coord).begin;
 
-        for pixel in region.pixel_region.into_iter() {
-            let val = image.get_pixel_shared::<T>((pixel + input_coord_pixel_begin - output_pixel_begin) / divisor);
-            //let my_pixel = (pixel + input_coord_pixel_begin - output_pixel_begin) >> region.input_coord.z;
+        let read_region = region.pixel_region;
+        let sample_region = region.pixel_region + (input_coord_pixel_begin - output_pixel_begin);
 
-            samples.add_sample(&pixel, val);
+        println!("{:?} -> {:?}", read_region, sample_region);
+
+        let mut max_read = ivec2(0,0);
+        let mut min_read = ivec2(9999,9999);
+        let mut max_sample = ivec2(0,0);
+        let mut min_sample = ivec2(9999,9999);
+
+        for pixel in region.pixel_region.into_iter() {
+            let val = image.get_pixel_shared::<T>((dp.codec.format.size - pixel - 1) / divisor);
+            samples.add_sample(dw.codec.format.size - (pixel + (input_coord_pixel_begin - output_pixel_begin)) - 1, val);
+
+            min_read.x = min(pixel.x, min_read.x);
+            max_read.x = max(pixel.x, max_read.x);
+            min_read.y = min(pixel.y, min_read.y);
+            max_read.y = max(pixel.y, max_read.y);
+            
+            min_sample.x = min((pixel + (input_coord_pixel_begin - output_pixel_begin)).x, min_sample.x);
+            max_sample.x = max((pixel + (input_coord_pixel_begin - output_pixel_begin)).x, max_sample.x);
+            min_sample.y = min((pixel + (input_coord_pixel_begin - output_pixel_begin)).y, min_sample.y);
+            max_sample.y = max((pixel + (input_coord_pixel_begin - output_pixel_begin)).y, max_sample.y);
         }
+
+        println!("read = {:?} -> {:?}", min_read, max_read);
+        println!("samp = {:?} -> {:?}", min_sample, max_sample);
     }
 
-    if let Err(str) = dw.write_tile(job.output_coord, &samples.resolve_templated::<T>(dw.codec.format.encoding)) {
-        println!("{}", str);
+    if samples.num_samples != 0 {
+        println!("{} -> {}", dw.get_resource_uri(job.output_coord), samples.num_samples);
+        if let Err(str) = dw.write_tile(job.output_coord, &samples.resolve_templated::<T>(dw.codec.format.encoding)) {
+            println!("{}", str);
+        }
     }
 
     return;
@@ -84,23 +111,34 @@ pub fn gen_jobs(dp: &DatasetProvider, dw: &DatasetWriter, pixel_region: Dabb2, b
         dw.tilespace
         .get_covered_tiles(pixel_region)
         .into_iter()
-        .map(|out_coord_2| { 
+        .filter_map(|out_coord_2| { 
             let output_coord = ivec3(out_coord_2.x, out_coord_2.y, level);
             let out_pixel_region = dw.tilespace.tile_pixels_level(output_coord);
-            let sample_regions = 
-                dp.tilespace
+            println!("opr {:?}", out_pixel_region);
+            let sample_regions: Vec<SampleRegion>
+                =dp.tilespace
                 .get_covered_tiles(out_pixel_region)
-                .into_iter().map(|input_coord| {
+                .into_iter()
+                .filter(|input_coord| {
+                    dp.manifest.iter().any(|coord| {
+                        *coord == ivec3(input_coord.x, input_coord.y, 0)
+                    })
+                })
+                .map(|input_coord| {
                     let input_texel_region = dp.tilespace.tile_pixels(input_coord);
 
                     SampleRegion {
                         input_coord: ivec3(input_coord.x, input_coord.y, 0),
                         pixel_region: (out_pixel_region & input_texel_region) - input_texel_region.begin
                     }
-                }).collect();
-            Job {
-                output_coord,
-                sample_regions
+                })
+                .collect();
+            match sample_regions.is_empty() {
+                true  => None,
+                false => Some(Job {
+                    output_coord,
+                    sample_regions
+                })
             }
         }).collect::<Vec<Job>>()
     }).collect()

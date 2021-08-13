@@ -1,4 +1,4 @@
-use crate::{image::ImageCodec, retiling::process_all_jobs};
+use crate::{image::{ImageCodec, ImageFormat, PixelEncoding}, retiling::process_all_jobs, util::math};
 use glam::*;
 
 pub mod config;
@@ -19,7 +19,7 @@ pub mod sample_accumulator;
 async fn main() {
     
     let mut dp = match config::DatasetProvider::create(
-        "https://67.175.122.81/datasets/remapped/{x:3}_{y:3}_{z:3}.hgt",
+        "https://spkit.org/datasets/srtm/remapped/{x:3}_{y:3}_{z:3}.hgt",
         ImageCodec::srtm(),
         "https://spkit.org/datasets/srtm/remapped/manifest.json"
     ).await {
@@ -28,8 +28,14 @@ async fn main() {
     };
 
     let dw = dataset_writer::DatasetWriter {
-        tile_uri_format: "./output/{x:3}_{y:3}_{z:3}.hgt".to_string(),
-        codec: ImageCodec::srtm(),
+        tile_uri_format: "./output/{x:3}_{y:3}_{z:3}.png".to_string(),
+        codec: ImageCodec {
+            filetype: image::ImageFiletype::PNG,
+            format: ImageFormat {
+                encoding: PixelEncoding::srtm(),
+                size: ivec2(512, 512)
+            }
+        },
         tilespace: dataset::Tilespace {
             size: ivec2(512, 512),
             offset: ivec2(0, 0)
@@ -37,7 +43,18 @@ async fn main() {
         filetype: image::ImageFiletype::PNG
     };
 
-    let jobs = retiling::gen_jobs(&dp, &dw, util::math::Dabb2::bounds(ivec2(0,0), ivec2(2000,2000)), 0, 0);
+    println!("Created Dataset Provider, generating jobs...");
+
+    let out_tile = ivec2(3, 225);
+    let jobs = retiling::gen_jobs(
+        &dp,
+        &dw,
+        math::Dabb2::cell(out_tile) * 512,
+        0,
+        0
+    );
+
+    println!("{}", serde_json::to_string(&jobs).unwrap());
 
     process_all_jobs(&mut dp, &dw, &jobs).await;
 

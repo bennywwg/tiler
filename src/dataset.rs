@@ -12,7 +12,7 @@ impl Tilespace {
     pub fn get_covered_tiles(&self, pixel_bounds: Dabb2) -> Dabb2 {
         Dabb2::bounds(
             pixel_bounds.begin.floor_on_interval(self.size),
-            pixel_bounds.end.floor_on_interval(self.size) + self.size
+            (pixel_bounds.end - 1).floor_on_interval(self.size) + self.size
         ) / self.size
     }
     pub fn tile_pixels(&self, intput_coord: IVec2) -> Dabb2 {

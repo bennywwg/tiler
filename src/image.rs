@@ -82,46 +82,63 @@ fn decode_image(codec: ImageCodec, dst: &mut[u8], src: &[u8]) {
 }
 
 pub trait Image {
-    fn get_shared_backing(&self) -> &[u8];
-    //fn get_backing(&mut self) -> &mut[u8];
+    fn backing(&self) -> &[u8];
+    fn backing_as<'a, T>(&'a self) -> &'a [T] {
+        let res_len = self.backing().len() / std::mem::size_of::<T>();
+        assert!(res_len * std::mem::size_of::<T>() == self.backing().len());
+        unsafe { &std::mem::transmute::<&[u8],&[T]>(self.backing())[0..res_len] }
+    }
+    //fn mut_backing(&mut self) -> &mut[u8];
     fn get_format(&self) -> ImageFormat;
     fn compress(&self, filetype: ImageFiletype) -> Result<Vec<u8>,String> {
+        let fmt = self.get_format();
+        let mut res = vec![];
         return match filetype {
             ImageFiletype::Raw => {
-                let mut res = vec![];
-                res.extend_from_slice(self.get_shared_backing());
+                res.extend_from_slice(self.backing());
                 Ok(res)
             },
             ImageFiletype::PNG => {
-                let a =
-                image_ext::RgbImage::from_raw(
-                    self.get_format().size.x as u32,
-                     self.get_format().size.y as u32,
-                      self.get_shared_backing().to_vec()).ok_or("Failed to create image")?;
-                let d = image_ext::DynamicImage::ImageRgb8(a);
-        
-                let mut res = vec![];
-                d.write_to(&mut res, image_ext::ImageOutputFormat::Png).map_err(|e| e.to_string())?;
-        
+                let (w, h) = (fmt.size.x as u32, fmt.size.y as u32);
+                match (fmt.encoding.bit_depth, fmt.encoding.channels) {
+                    (8 , 1) =>
+                    image_ext::DynamicImage::ImageLuma8(
+                        image_ext::GrayImage::from_raw(w, h, self.backing_as::<u8>().to_vec())
+                        .ok_or("Couldn't create GrayImage")?
+                    ),
+                    (8 , 3) =>
+                    image_ext::DynamicImage::ImageRgb8(
+                        image_ext::RgbImage::from_raw(w, h, self.backing_as::<u8>().to_vec())
+                        .ok_or("Couldn't create RgbImage")?
+                    ),
+                    (16, 1) =>
+                    image_ext::DynamicImage::ImageLuma16(
+                        image_ext::ImageBuffer::<image_ext::Luma::<u16>, Vec::<u16>>::from_raw(w, h, self.backing_as::<u16>().to_vec())
+                        .ok_or("Couldn't create ImageBuffer::<image_ext::Luma::<u16>, Vec::<u16>>")?
+                    ),
+                    _ => panic!()
+                }
+                .write_to(&mut res, image_ext::ImageOutputFormat::Png)
+                .map_err(|e| e.to_string())?;
                 Ok(res)
             },
             ImageFiletype::TIFF => panic!()
         }
     }
     fn get_pixel_mem_shared<T: num::Integer>(&self, mem_index: usize) -> &T {
-        assert!(mem_index + std::mem::size_of::<T>() <= self.get_shared_backing().len());
-        unsafe { std::mem::transmute::<&u8, &T>(&self.get_shared_backing()[mem_index]) }
+        assert!(mem_index + std::mem::size_of::<T>() <= self.backing().len());
+        unsafe { std::mem::transmute::<&u8, &T>(&self.backing()[mem_index]) }
     }
     fn get_pixel_shared<T: num::Integer>(&self, px: IVec2) -> &T {
-        self.get_pixel_mem_shared(px.y as usize * self.get_format().size.x as usize + px.x as usize)
+        self.get_pixel_mem_shared((px.y as usize * self.get_format().size.x as usize + px.x as usize) * std::mem::size_of::<T>())
     }
 }
 
 pub trait ImageWriteable : Image {
-    fn get_backing(&mut self) -> &mut[u8];
+    fn mut_backing(&mut self) -> &mut[u8];
     fn get_pixel_mem<T: num::Integer>(&mut self, mem_index: usize) -> &mut T {
-        assert!(mem_index + std::mem::size_of::<T>() <= self.get_backing().len());
-        unsafe { std::mem::transmute::<&mut u8, &mut T>(&mut self.get_backing()[mem_index]) }
+        assert!(mem_index + std::mem::size_of::<T>() <= self.mut_backing().len());
+        unsafe { std::mem::transmute::<&mut u8, &mut T>(&mut self.mut_backing()[mem_index]) }
     }
 
     // Recommended to use get_pixel_mem for repeated operations for performance reasons
@@ -138,7 +155,7 @@ pub struct ImageBacked<'a> {
 }
 
 impl<'a> Image for ImageBacked<'a> {
-    fn get_shared_backing(&self) -> &[u8] {
+    fn backing(&self) -> &[u8] {
         self.data
     }
     fn get_format(&self) -> ImageFormat {
@@ -185,7 +202,7 @@ impl ImageOwned {
 }
 
 impl Image for ImageOwned {
-    fn get_shared_backing(&self) -> &[u8] {
+    fn backing(&self) -> &[u8] {
         &self.data[..]
     }
     fn get_format(&self) -> ImageFormat {
@@ -194,7 +211,7 @@ impl Image for ImageOwned {
 }
 
 impl ImageWriteable for ImageOwned {
-    fn get_backing(&mut self) -> &mut[u8] {
+    fn mut_backing(&mut self) -> &mut[u8] {
         &mut self.data[..]
     }
 }
