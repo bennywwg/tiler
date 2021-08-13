@@ -2,7 +2,7 @@ use serde::de;
 use warp::{reject, Filter, Rejection};
 
 pub fn query<T>() -> impl Filter<Extract = (T,), Error = Rejection> + Clone
-where T: de::DeserializeOwned + Send + 'static, {
+where T: de::DeserializeOwned + Send + 'static {
     warp::query::raw()
     .or_else(|_| async {
         Ok::<_, Rejection>((String::new(),))

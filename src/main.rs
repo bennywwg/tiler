@@ -1,4 +1,4 @@
-use crate::{image::ImageCodec};
+use crate::{image::{ImageCodec, ImageFormat, PixelEncoding}, retiling::process_all_jobs, util::math};
 use glam::*;
 
 pub mod config;
@@ -10,42 +10,55 @@ pub mod http_api;
 pub mod uri_format;
 pub mod retiling;
 pub mod serde_json_warp;
+pub mod network_util;
+pub mod dataset;
+pub mod dataset_writer;
+pub mod sample_accumulator;
 
 #[tokio::main]
 async fn main() {
-    // let dp = config::DatasetProvider {
-    //     tile_uri_format: "https://67.175.122.81/datasets/remapped/222_144_000.hgt".to_string(),
-    //     codec: ImageCodec::srtm(),
-    //     tilespace: Tilespace {
-    //         size: ivec2(1201, 1201),
-    //         offset: ivec2(0, 0)
-    //     }
-    // };
-
-    // let dw = config::DatasetWriter {
-    //     tile_uri_format: "https://67.175.122.81/datasets/remapped/222_144_000.hgt".to_string(),
-    //     codec: ImageCodec::srtm(),
-    //     tilespace: Tilespace {
-    //         size: ivec2(512, 512),
-    //         offset: ivec2(0, 0)
-    //     }
-    // };
-
-    // let jobs = retiling::gen_jobs(&dp, &dw, util::math::Dabb2::bounds(ivec2(0,0), ivec2(2000,2000)), 0, 0);
-    // println!("{:?}", jobs);
-
-    // return;
-
-    let preview_request = http_api::PreviewRequest {
-        tile_uri_format: "https://spkit.org/datasets/srtm/remapped/{x:3}_{y:3}_{z:3}.hgt".to_string(),
-        decode_info: Some(ImageCodec::srtm()),
-        coord: ivec3(222, 144, 0),
-        range: vec2(0.0, 400.0),
+    
+    let mut dp = match config::DatasetProvider::create(
+        "https://spkit.org/datasets/srtm/remapped/{x:3}_{y:3}_{z:3}.hgt",
+        ImageCodec::srtm(),
+        "https://spkit.org/datasets/srtm/remapped/manifest.json"
+    ).await {
+        Ok(dp) => dp,
+        Err(_) => { return; }
     };
 
-    let s = serde_json::to_string(&preview_request).unwrap();
-    println!("{}", s);
+    let dw = dataset_writer::DatasetWriter {
+        tile_uri_format: "./output/{x:3}_{y:3}_{z:3}.png".to_string(),
+        codec: ImageCodec {
+            filetype: image::ImageFiletype::PNG,
+            format: ImageFormat {
+                encoding: PixelEncoding::srtm(),
+                size: ivec2(512, 512)
+            }
+        },
+        tilespace: dataset::Tilespace {
+            size: ivec2(512, 512),
+            offset: ivec2(0, 0)
+        },
+        filetype: image::ImageFiletype::PNG
+    };
+
+    println!("Created Dataset Provider, generating jobs...");
+
+    let out_tile = ivec2(3, 225);
+    let jobs = retiling::gen_jobs(
+        &dp,
+        &dw,
+        math::Dabb2::cell(out_tile) * 512,
+        0,
+        0
+    );
+
+    process_all_jobs(&mut dp, &dw, &jobs).await;
+
+    //let s = serde_json::to_string(&preview_request).unwrap();
+    //println!("{}", s);
     //println!("{:?}", serde_json::from_str::<http_api::PreviewRequest>(&s));
     
-    http_api::run().await;
+    //http_api::run().await;
 }
