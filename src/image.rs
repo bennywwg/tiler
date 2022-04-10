@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use serde::{Serialize, Deserialize};
 use glam::*;
 use ::image as image_ext;
@@ -92,11 +93,11 @@ pub trait Image {
     fn get_format(&self) -> ImageFormat;
     fn compress(&self, filetype: ImageFiletype) -> Result<Vec<u8>,String> {
         let fmt = self.get_format();
-        let mut res = vec![];
+        let mut res = Cursor::new(vec![]);
         return match filetype {
             ImageFiletype::Raw => {
-                res.extend_from_slice(self.backing());
-                Ok(res)
+                res.get_mut().extend_from_slice(self.backing());
+                Ok(res.into_inner())
             },
             ImageFiletype::PNG => {
                 let (w, h) = (fmt.size.x as u32, fmt.size.y as u32);
@@ -120,7 +121,7 @@ pub trait Image {
                 }
                 .write_to(&mut res, image_ext::ImageOutputFormat::Png)
                 .map_err(|e| e.to_string())?;
-                Ok(res)
+                Ok(res.into_inner())
             },
             ImageFiletype::TIFF => panic!()
         }

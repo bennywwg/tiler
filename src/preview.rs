@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use glam::*;
 use num::*;
 use crate::image::*;
@@ -73,7 +74,7 @@ pub fn make_preview(image: &impl Image, min: f32, max: f32) -> Option<ImageOwned
     let a = image_ext::RgbImage::from_raw(image.get_format().size.x as u32, image.get_format().size.y as u32, res_data)?;
     let d = image_ext::DynamicImage::ImageRgb8(a);
 
-    let mut asdf = vec![];
+    let mut asdf = Cursor::new(vec![]);
     d.write_to(&mut asdf, image_ext::ImageOutputFormat::Png).ok()?;
 
     Some(ImageOwned{
@@ -81,6 +82,6 @@ pub fn make_preview(image: &impl Image, min: f32, max: f32) -> Option<ImageOwned
             encoding: PixelEncoding::color(),
             size: image.get_format().size
         },
-        data: asdf
+        data: asdf.into_inner()
     })
 }
